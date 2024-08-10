@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use image::imageops::FilterType;
-use scale_benchmarks::{algo_scalers::CPUAlgoUpscaler, upscaler::UpscaleSquareImage};
+use scale_benchmarks::{cpu_algo::CPUAlgoUpscaler, upscaler::UpscaleSquareImage};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let scaler = CPUAlgoUpscaler::new(2.0, FilterType::Lanczos3);

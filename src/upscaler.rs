@@ -1,7 +1,7 @@
 use image::DynamicImage;
 
 /// Allocation-effecient upscaling of square images
-pub trait UpscaleSquareImage: Default {
+pub trait UpscaleSquareImage {
     type Error;
 
     /// Stores an image in an optimal way, prepares it for upscaling
