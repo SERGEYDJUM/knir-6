@@ -1,14 +1,16 @@
-use std::path::{Path, PathBuf};
+use std::{fmt::Debug, path::Path};
 
-use image::{DynamicImage, RgbImage};
+use image::{DynamicImage, GenericImageView, RgbImage};
 use ndarray::Array4;
-use ort::{Input, Session, ValueType};
+use ort::{Session, ValueType};
 
 use crate::{error::Error, upscaler::UpscaleSquareImage};
 
 #[derive(Debug)]
 pub struct ONNXNeuralUpscaler {
     session: Session,
+    original_res: u32,
+    target_res: u32,
     image: Array4<f32>,
     upscaled_image: DynamicImage,
     scale_factor: f32,
@@ -37,12 +39,13 @@ impl ONNXNeuralUpscaler {
             return Err(Error::UnsquareModelIO);
         }
 
-        let image = RgbImage::new(x_in, x_in);
         let upscaled_image = RgbImage::new(x_out, x_out);
         let scale_factor = x_out as f32 / x_in as f32;
 
         Ok(Self {
             session,
+            original_res: x_in,
+            target_res: x_out,
             image: Array4::zeros([1, 3, x_in as usize, x_in as usize]),
             upscaled_image: upscaled_image.into(),
             scale_factor,
@@ -54,26 +57,63 @@ impl UpscaleSquareImage for ONNXNeuralUpscaler {
     type Error = Error;
 
     fn load(&mut self, image: &DynamicImage) -> Result<(), Self::Error> {
-        todo!()
+        if image.width() != image.height() {
+            return Err(Error::UnsquareImage);
+        }
+
+        let side = image.width();
+        self.image = Array4::zeros([1, 3, side as usize, side as usize]);
+        for (x, y, color) in image.pixels() {
+            let (x, y) = (x as usize, y as usize);
+            self.image[[0, 0, x, y]] = color[2] as f32;
+            self.image[[0, 1, x, y]] = color[1] as f32;
+            self.image[[0, 2, x, y]] = color[0] as f32;
+        }
+        Ok(())
     }
 
     fn upscale(&self) -> Result<DynamicImage, Self::Error> {
-        todo!()
+        let outputs = self
+            .session
+            .run(ort::inputs![&self.session.inputs[0].name => self.image.view()]?)?;
+
+        let pixels: Vec<u8> = outputs[0]
+            .try_extract_tensor::<f32>()?
+            .iter()
+            .map(|&i| i as u8)
+            .collect();
+
+        Ok(RgbImage::from_raw(
+            self.upscaled_resolution(),
+            self.upscaled_resolution(),
+            pixels,
+        )
+        .unwrap()
+        .into())
     }
 
     fn upscale_inplace(&mut self) -> Result<&DynamicImage, Self::Error> {
-        todo!()
+        self.upscaled_image = self.upscale()?;
+        Ok(&self.upscaled_image)
     }
 
     fn upscale_factor(&self) -> f32 {
-        todo!()
+        self.scale_factor
     }
 
     fn original_resolution(&self) -> u32 {
-        todo!()
+        self.original_res
+    }
+
+    fn upscaled_resolution(&self) -> u32 {
+        self.target_res
     }
 
     fn upscale_repeat(&mut self, times: usize) -> Result<&DynamicImage, Self::Error> {
-        todo!()
+        for _ in 0..times {
+            self.upscale_inplace()?;
+        }
+
+        Ok(&self.upscaled_image)
     }
 }
