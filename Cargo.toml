@@ -4,13 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ort = { version = "2.0.0-rc.4", features = ["ndarray"] }
+# ort = { version = "2.0.0-rc.4", features = ["ndarray"] }
+wgpu = "22.1"
 image = "0.25"
+ndarray = "0.15"
+env_logger = "0.11"
+log = "0.4"
 thiserror = "1.0"
-ndarray = {version = "0.15", features = ["rayon"] }
+pollster = "0.3.0"
+bytemuck = { version = "1.17.0", features = ["derive"] }
 
 [dev-dependencies]
-criterion = "^0.5"
+criterion = "0.5"
 
 [[bench]]
 name = "devbench"
